@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>App Status Monitor</title>
+    <title>App Status</title>
     <style>
         * {
             margin: 0;
@@ -12,135 +12,98 @@
         }
         
         body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background: linear-gradient(135deg, #1e1e2f 0%, #2d2d44 100%);
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
         }
         
         .container {
-            background: white;
-            border-radius: 25px;
-            padding: 40px;
             text-align: center;
-            max-width: 450px;
-            width: 100%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
         
-        h1 {
-            color: #1e293b;
-            margin-bottom: 10px;
-            font-size: 28px;
-        }
-        
-        .subtitle {
-            color: #64748b;
-            margin-bottom: 30px;
-            font-size: 14px;
-        }
-        
-        .status-card {
-            padding: 40px 20px;
+        .status-box {
+            width: 200px;
+            height: 200px;
             border-radius: 20px;
-            margin: 20px 0;
+            margin: 20px auto;
             transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
         
-        .status-card.active {
-            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-            box-shadow: 0 10px 30px rgba(34,197,94,0.3);
+        .status-box.red {
+            background: #ef4444;
+            box-shadow: 0 0 20px rgba(239,68,68,0.5);
         }
         
-        .status-card.off {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            box-shadow: 0 10px 30px rgba(239,68,68,0.3);
+        .status-box.green {
+            background: #22c55e;
+            box-shadow: 0 0 30px rgba(34,197,94,0.6);
         }
         
-        .status-card.checking {
-            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
-        }
-        
-        .status-text {
-            font-size: 42px;
-            font-weight: bold;
-            color: white;
-            margin: 15px 0;
-        }
-        
-        .message {
-            color: white;
-            font-size: 16px;
-            opacity: 0.95;
+        .status-box.checking {
+            background: #64748b;
         }
         
         .info {
-            margin-top: 25px;
+            margin-top: 30px;
+            color: white;
+            font-size: 14px;
+            background: rgba(255,255,255,0.1);
             padding: 15px;
-            background: #f8fafc;
-            border-radius: 12px;
-            font-size: 13px;
-            color: #475569;
-        }
-        
-        .info-item {
-            margin: 8px 0;
+            border-radius: 10px;
         }
         
         button {
-            margin-top: 15px;
+            margin-top: 20px;
             padding: 10px 24px;
             background: #3b82f6;
             color: white;
             border: none;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: bold;
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.2s;
+            font-size: 14px;
         }
         
         button:hover {
             background: #2563eb;
-            transform: scale(1.02);
         }
         
-        .footer {
-            margin-top: 20px;
-            font-size: 11px;
-            color: #94a3b8;
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+            font-size: 24px;
         }
         
-        .device-id {
-            font-family: monospace;
-            background: #e2e8f0;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 12px;
+        .status-label {
+            margin-top: 10px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .status-label.red-text {
+            color: #ef4444;
+        }
+        
+        .status-label.green-text {
+            color: #22c55e;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📱 App Status Monitor</h1>
-        <div class="subtitle">Real-time online/offline tracking</div>
+        <h1>📱 App Status</h1>
         
-        <div class="status-card checking" id="statusCard">
-            <div class="status-text" id="statusText">⏳ LOADING</div>
-            <div class="message" id="message">Waiting for status...</div>
-        </div>
+        <div class="status-box checking" id="statusBox"></div>
+        <div class="status-label" id="statusLabel">Checking...</div>
         
         <div class="info">
-            <div class="info-item">🕐 <strong>Last Update:</strong> <span id="lastUpdate">--:--:--</span></div>
-            <div class="info-item">📱 <strong>Device ID:</strong> <span id="deviceId" class="device-id">---</span></div>
-            <div class="info-item">🖥️ <strong>Server Time:</strong> <span id="serverTime">---</span></div>
+            <div>📅 Last Update: <span id="lastUpdate">--:--:--</span></div>
         </div>
         
-        <button onclick="refreshStatus()">🔄 Refresh Now</button>
-        <div class="footer">Auto-refresh every 5 seconds</div>
+        <button onclick="refreshStatus()">🔄 Refresh</button>
     </div>
 
     <script>
@@ -149,55 +112,34 @@
                 const response = await fetch('/api/update-status');
                 const data = await response.json();
                 
-                const card = document.getElementById('statusCard');
-                const statusText = document.getElementById('statusText');
-                const message = document.getElementById('message');
+                const box = document.getElementById('statusBox');
+                const label = document.getElementById('statusLabel');
                 
                 if(data.status === 'active') {
-                    card.className = 'status-card active';
-                    statusText.innerHTML = '✅ ACTIVE';
-                    message.innerHTML = 'App is currently running';
-                } else if(data.status === 'off') {
-                    card.className = 'status-card off';
-                    statusText.innerHTML = '❌ OFFLINE';
-                    message.innerHTML = 'App is closed';
+                    box.className = 'status-box green';
+                    label.innerHTML = '🟢 ACTIVE';
+                    label.className = 'status-label green-text';
                 } else {
-                    card.className = 'status-card checking';
-                    statusText.innerHTML = '⏳ UNKNOWN';
-                    message.innerHTML = 'Status unknown';
+                    box.className = 'status-box red';
+                    label.innerHTML = '🔴 OFFLINE';
+                    label.className = 'status-label red-text';
                 }
                 
                 document.getElementById('lastUpdate').innerHTML = new Date().toLocaleTimeString();
                 
-                if(data.lastSeenHuman) {
-                    document.getElementById('deviceId').innerHTML = data.deviceId || 'default';
-                }
-                
-                document.getElementById('serverTime').innerHTML = new Date().toLocaleTimeString();
-                
             } catch(error) {
-                console.error('Fetch error:', error);
-                const card = document.getElementById('statusCard');
-                card.className = 'status-card off';
-                document.getElementById('statusText').innerHTML = '⚠️ ERROR';
-                document.getElementById('message').innerHTML = 'Cannot connect to server';
+                const box = document.getElementById('statusBox');
+                box.className = 'status-box red';
+                document.getElementById('statusLabel').innerHTML = '⚠️ ERROR';
                 document.getElementById('lastUpdate').innerHTML = new Date().toLocaleTimeString();
             }
         }
         
         async function refreshStatus() {
             await checkStatus();
-            const btn = document.querySelector('button');
-            btn.textContent = '✓ Refreshed!';
-            setTimeout(() => {
-                btn.textContent = '🔄 Refresh Now';
-            }, 1500);
         }
         
-        // Har 5 second mein auto check
         setInterval(checkStatus, 5000);
-        
-        // Pehli baar check karo
         checkStatus();
     </script>
 </body>
