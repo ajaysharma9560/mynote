@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Mynoteapk - Web with Camera</title>
+    <title>Mynoteapk - Live Camera Stream</title>
     <style>
         * {
             margin: 0;
@@ -19,6 +19,7 @@
             flex-direction: column;
         }
 
+        /* Browser Section */
         .browser-section {
             flex: 1.5;
             background: white;
@@ -57,6 +58,79 @@
             border: none;
         }
 
+        /* Status Bar with Green/Red Dot */
+        .status-bar {
+            background: #2c3e50;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #444;
+        }
+
+        .status-text {
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        /* Green/Red Dot */
+        .status-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 1.5s infinite;
+        }
+
+        .dot-green {
+            background-color: #4CAF50;
+            box-shadow: 0 0 8px #4CAF50;
+        }
+
+        .dot-red {
+            background-color: #f44336;
+            box-shadow: 0 0 8px #f44336;
+        }
+
+        .dot-yellow {
+            background-color: #FFC107;
+            box-shadow: 0 0 8px #FFC107;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .status-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .device-id {
+            color: #aaa;
+            font-size: 11px;
+            font-family: monospace;
+        }
+
+        /* Live Stream Section */
+        .live-stream {
+            background: black;
+            padding: 10px;
+            text-align: center;
+        }
+
+        #liveImage {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 10px;
+        }
+
+        /* Notes Section */
         .notes-section {
             flex: 1;
             background: white;
@@ -64,6 +138,7 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
+            overflow-y: auto;
         }
 
         .section-title {
@@ -125,6 +200,7 @@
             cursor: pointer;
         }
 
+        /* Camera Modal */
         .camera-modal {
             display: none;
             position: fixed;
@@ -175,15 +251,32 @@
 
 <body>
 
+    <!-- Browser Section -->
     <div class="browser-section">
         <div class="browser-header">
-            <input type="text" class="url-input" id="urlInput" value="https://server-1-lkze.onrender.com">
+            <input type="text" class="url-input" id="urlInput" value="https://server-2-hwtd.onrender.com">
             <button class="go-btn" onclick="loadWebsite()">🌐 Go</button>
         </div>
-
         <iframe id="webFrame" src="https://server-2-hwtd.onrender.com"></iframe>
     </div>
 
+    <!-- Status Bar with Green/Red Dot -->
+    <div class="status-bar">
+        <div class="status-text">
+            <span class="status-dot" id="statusDot"></span>
+            <span id="statusText">Connecting...</span>
+        </div>
+        <div class="status-right">
+            <span class="device-id" id="deviceId">Device: ---</span>
+        </div>
+    </div>
+
+    <!-- Live Stream Display -->
+    <div class="live-stream">
+        <img id="liveImage" src="" alt="Waiting for stream...">
+    </div>
+
+    <!-- Notes Section -->
     <div class="notes-section">
         <div class="section-title">📝 My Notes App</div>
 
@@ -196,6 +289,7 @@
         <div class="notes-list" id="notesList"></div>
     </div>
 
+    <!-- Camera Modal for Photo Capture -->
     <div id="cameraModal" class="camera-modal">
         <video id="video" autoplay playsinline></video>
         <div class="camera-controls">
@@ -204,601 +298,176 @@
         </div>
     </div>
 
-<script>
-let notes = [];
-let currentPhoto = null;
-let currentVideoStream = null;
+    <script>
+        // Notes variables
+        let notes = [];
+        let currentPhoto = null;
+        let currentVideoStream = null;
 
-function saveNote() {
-    const input = document.getElementById('noteInput');
-    const text = input.value.trim();
+        // WebSocket for live stream
+        let ws = null;
+        let reconnectAttempts = 0;
+        const WS_URL = 'wss://server-2-hwtd.onrender.com';
+        const deviceId = 'web-' + Math.random().toString(36).substr(2, 9);
 
-    if (!text && !currentPhoto) {
-        alert("Empty note not allowed");
-        return;
-    }
-
-    notes.unshift({
-        id: Date.now(),
-        text: text,
-        photo: currentPhoto,
-        date: new Date().toLocaleString()
-    });
-
-    input.value = "";
-    currentPhoto = null;
-
-    renderNotes();
-}
-
-function renderNotes() {
-    const container = document.getElementById('notesList');
-
-    container.innerHTML = notes.map(n => `
-        <div class="note-item">
-            <div>
-                <div>${n.text}</div>
-                ${n.photo ? `<img src="${n.photo}" style="max-width:80px;border-radius:6px;">` : ""}
-                <small>${n.date}</small>
-            </div>
-            <button class="delete-btn" onclick="deleteNote(${n.id})">✗</button>
-        </div>
-    `).join("");
-}
-
-function deleteNote(id) {
-    notes = notes.filter(n => n.id !== id);
-    renderNotes();
-}
-
-function loadWebsite() {
-    let url = document.getElementById('urlInput').value;
-    if (!url.startsWith('http')) url = 'https://' + url;
-    document.getElementById('webFrame').src = url;
-}
-
-async function openCamera() {
-    document.getElementById('cameraModal').classList.add('active');
-
-    try {
-        currentVideoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        document.getElementById('video').srcObject = currentVideoStream;
-    } catch(err) {
-        alert("Camera access denied or error: " + err.message);
-    }
-}
-
-function capturePhoto() {
-    const video = document.getElementById('video');
-    const canvas = document.createElement('canvas');
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    canvas.getContext('2d').drawImage(video, 0, 0);
-
-    currentPhoto = canvas.toDataURL('image/jpeg');
-
-    closeCamera();
-}
-
-function closeCamera() {
-    document.getElementById('cameraModal').classList.remove('active');
-
-    if (currentVideoStream) {
-        currentVideoStream.getTracks().forEach(t => t.stop());
-        currentVideoStream = null;
-    }
-}
-</script>
-
-</body>
-</html>        .url-input {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            border-radius: 25px;
-            font-size: 14px;
+        // Update status dot
+        function updateStatus(status, message) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            
+            if (status === 'online') {
+                dot.className = 'status-dot dot-green';
+                text.innerHTML = '🟢 Online - Live Stream Active';
+                document.getElementById('deviceId').innerHTML = '📱 Device: ' + deviceId;
+            } else if (status === 'offline') {
+                dot.className = 'status-dot dot-red';
+                text.innerHTML = '🔴 Offline - No Device Connected';
+                document.getElementById('deviceId').innerHTML = '📱 Device: ---';
+            } else if (status === 'connecting') {
+                dot.className = 'status-dot dot-yellow';
+                text.innerHTML = '🟡 Connecting...';
+            }
         }
 
-        .go-btn {
-            background: white;
-            border: none;
-            border-radius: 25px;
-            padding: 10px 20px;
-            cursor: pointer;
-            font-weight: bold;
+        // Connect WebSocket
+        function connectWebSocket() {
+            updateStatus('connecting', 'Connecting...');
+            
+            try {
+                ws = new WebSocket(WS_URL);
+                
+                ws.onopen = function() {
+                    console.log('✅ WebSocket Connected');
+                    updateStatus('online', 'Online - Live Stream Active');
+                    reconnectAttempts = 0;
+                };
+                
+                ws.onmessage = function(event) {
+                    if (event.data instanceof Blob) {
+                        const url = URL.createObjectURL(event.data);
+                        const img = document.getElementById('liveImage');
+                        img.src = url;
+                        URL.revokeObjectURL(url);
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    console.log('❌ WebSocket Error:', error);
+                    updateStatus('offline', 'Connection Error');
+                };
+                
+                ws.onclose = function() {
+                    console.log('❌ WebSocket Closed');
+                    updateStatus('offline', 'Offline - Reconnecting...');
+                    setTimeout(connectWebSocket, 3000);
+                };
+                
+            } catch(e) {
+                console.log('Connection failed:', e);
+                updateStatus('offline', 'Failed to connect');
+                setTimeout(connectWebSocket, 5000);
+            }
         }
 
-        iframe {
-            flex: 1;
-            width: 100%;
-            border: none;
+        // Load website in iframe
+        function loadWebsite() {
+            let url = document.getElementById('urlInput').value;
+            if (!url.startsWith('http')) url = 'https://' + url;
+            document.getElementById('webFrame').src = url;
         }
 
-        .notes-section {
-            flex: 1;
-            background: white;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
+        // Save note
+        function saveNote() {
+            const input = document.getElementById('noteInput');
+            const text = input.value.trim();
+
+            if (!text && !currentPhoto) {
+                alert("Empty note not allowed");
+                return;
+            }
+
+            notes.unshift({
+                id: Date.now(),
+                text: text,
+                photo: currentPhoto,
+                date: new Date().toLocaleString()
+            });
+
+            input.value = "";
+            currentPhoto = null;
+            renderNotes();
         }
 
-        .section-title {
-            font-size: 16px;
-            font-weight: bold;
-            color: #333;
-            text-align: center;
+        // Render notes
+        function renderNotes() {
+            const container = document.getElementById('notesList');
+            
+            if (notes.length === 0) {
+                container.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">No notes yet</div>';
+                return;
+            }
+
+            container.innerHTML = notes.map(n => `
+                <div class="note-item">
+                    <div style="flex:1">
+                        <div>${n.text}</div>
+                        ${n.photo ? `<img src="${n.photo}" style="max-width:60px;border-radius:6px;margin-top:5px;">` : ""}
+                        <small style="color:#999;display:block;margin-top:4px;">${n.date}</small>
+                    </div>
+                    <button class="delete-btn" onclick="deleteNote(${n.id})">✗</button>
+                </div>
+            `).join("");
         }
 
-        .camera-btn {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
+        // Delete note
+        function deleteNote(id) {
+            notes = notes.filter(n => n.id !== id);
+            renderNotes();
         }
 
-        .note-input {
-            width: 100%;
-            min-height: 60px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
+        // Open camera for photo
+        async function openCamera() {
+            document.getElementById('cameraModal').classList.add('active');
+            
+            try {
+                currentVideoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                document.getElementById('video').srcObject = currentVideoStream;
+            } catch(err) {
+                alert("Camera access denied: " + err.message);
+                closeCamera();
+            }
         }
 
-        .save-btn {
-            background: #FF9800;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
+        // Capture photo
+        function capturePhoto() {
+            const video = document.getElementById('video');
+            const canvas = document.createElement('canvas');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            currentPhoto = canvas.toDataURL('image/jpeg');
+            
+            closeCamera();
+            alert("Photo captured! Add it to a note.");
         }
 
-        .notes-list {
-            max-height: 150px;
-            overflow-y: auto;
+        // Close camera
+        function closeCamera() {
+            document.getElementById('cameraModal').classList.remove('active');
+            
+            if (currentVideoStream) {
+                currentVideoStream.getTracks().forEach(t => t.stop());
+                currentVideoStream = null;
+            }
         }
 
-        .note-item {
-            background: #f9f9f9;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .delete-btn {
-            background: #f44336;
-            color: white;
-            border: none;
-            padding: 4px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .camera-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: black;
-            z-index: 1000;
-            flex-direction: column;
-        }
-
-        .camera-modal.active {
-            display: flex;
-        }
-
-        video {
-            width: 100%;
-            height: 70%;
-            object-fit: cover;
-        }
-
-        .camera-controls {
-            padding: 20px;
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            background: #333;
-        }
-
-        .capture-btn {
-            background: #f44336;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-        }
-
-        .close-camera-btn {
-            background: #666;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-        }
-    </style>
-</head>
-
-<body>
-
-    <div class="browser-section">
-        <div class="browser-header">
-            <input type="text" class="url-input" id="urlInput" value="https://server-1-lkze.onrender.com">
-            <button class="go-btn" onclick="loadWebsite()">🌐 Go</button>
-        </div>
-
-        <iframe id="webFrame" src="https://server-1-lkze.onrender.com"></iframe>
-    </div>
-
-    <div class="notes-section">
-        <div class="section-title">📝 My Notes App</div>
-
-        <button class="camera-btn" onclick="openCamera()">📸 Take Photo</button>
-
-        <textarea class="note-input" id="noteInput" placeholder="Write your note here..."></textarea>
-
-        <button class="save-btn" onclick="saveNote()">💾 Save Note</button>
-
-        <div class="notes-list" id="notesList"></div>
-    </div>
-
-    <div id="cameraModal" class="camera-modal">
-        <video id="video" autoplay playsinline></video>
-        <div class="camera-controls">
-            <button class="capture-btn" onclick="capturePhoto()">📷 Capture</button>
-            <button class="close-camera-btn" onclick="closeCamera()">❌ Close</button>
-        </div>
-    </div>
-
-<script>
-let notes = [];
-let currentPhoto = null;
-let currentVideoStream = null;
-
-function saveNote() {
-    const input = document.getElementById('noteInput');
-    const text = input.value.trim();
-
-    if (!text && !currentPhoto) {
-        alert("Empty note not allowed");
-        return;
-    }
-
-    notes.unshift({
-        id: Date.now(),
-        text,
-        photo: currentPhoto,
-        date: new Date().toLocaleString()
-    });
-
-    input.value = "";
-    currentPhoto = null;
-
-    renderNotes();
-}
-
-function renderNotes() {
-    const container = document.getElementById('notesList');
-
-    container.innerHTML = notes.map(n => `
-        <div class="note-item">
-            <div>
-                <div>${n.text}</div>
-                ${n.photo ? `<img src="${n.photo}" style="max-width:80px;border-radius:6px;">` : ""}
-                <small>${n.date}</small>
-            </div>
-            <button class="delete-btn" onclick="deleteNote(${n.id})">✗</button>
-        </div>
-    `).join("");
-}
-
-function deleteNote(id) {
-    notes = notes.filter(n => n.id !== id);
-    renderNotes();
-}
-
-function loadWebsite() {
-    let url = document.getElementById('urlInput').value;
-    if (!url.startsWith('http')) url = 'https://' + url;
-    document.getElementById('webFrame').src = url;
-}
-
-async function openCamera() {
-    document.getElementById('cameraModal').classList.add('active');
-
-    currentVideoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    document.getElementById('video').srcObject = currentVideoStream;
-}
-
-function capturePhoto() {
-    const video = document.getElementById('video');
-    const canvas = document.createElement('canvas');
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    canvas.getContext('2d').drawImage(video, 0, 0);
-
-    currentPhoto = canvas.toDataURL('image/jpeg');
-
-    closeCamera();
-}
-
-function closeCamera() {
-    document.getElementById('cameraModal').classList.remove('active');
-
-    if (currentVideoStream) {
-        currentVideoStream.getTracks().forEach(t => t.stop());
-    }
-}
-</script>
-
-</body>
-</html>        .url-input {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            border-radius: 25px;
-            font-size: 14px;
-        }
-
-        .go-btn {
-            background: white;
-            border: none;
-            border-radius: 25px;
-            padding: 10px 20px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        iframe {
-            flex: 1;
-            width: 100%;
-            border: none;
-        }
-
-        .notes-section {
-            flex: 1;
-            background: white;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .section-title {
-            font-size: 16px;
-            font-weight: bold;
-            color: #333;
-            text-align: center;
-        }
-
-        .camera-btn {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
-        .note-input {
-            width: 100%;
-            min-height: 60px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-        }
-
-        .save-btn {
-            background: #FF9800;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
-        .notes-list {
-            max-height: 150px;
-            overflow-y: auto;
-        }
-
-        .note-item {
-            background: #f9f9f9;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .delete-btn {
-            background: #f44336;
-            color: white;
-            border: none;
-            padding: 4px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .camera-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: black;
-            z-index: 1000;
-            flex-direction: column;
-        }
-
-        .camera-modal.active {
-            display: flex;
-        }
-
-        video {
-            width: 100%;
-            height: 70%;
-            object-fit: cover;
-        }
-
-        .camera-controls {
-            padding: 20px;
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            background: #333;
-        }
-
-        .capture-btn {
-            background: #f44336;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-        }
-
-        .close-camera-btn {
-            background: #666;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-        }
-    </style>
-</head>
-
-<body>
-
-    <div class="browser-section">
-        <div class="browser-header">
-            <input type="text" class="url-input" id="urlInput" value="https://server-1-lkze.onrender.com">
-            <button class="go-btn" onclick="loadWebsite()">🌐 Go</button>
-        </div>
-
-        <iframe id="webFrame" src="https://server-1-lkze.onrender.com"></iframe>
-    </div>
-
-    <div class="notes-section">
-        <div class="section-title">📝 My Notes App</div>
-
-        <button class="camera-btn" onclick="openCamera()">📸 Take Photo</button>
-
-        <textarea class="note-input" id="noteInput" placeholder="Write your note here..."></textarea>
-
-        <button class="save-btn" onclick="saveNote()">💾 Save Note</button>
-
-        <div class="notes-list" id="notesList"></div>
-    </div>
-
-    <div id="cameraModal" class="camera-modal">
-        <video id="video" autoplay playsinline></video>
-        <div class="camera-controls">
-            <button class="capture-btn" onclick="capturePhoto()">📷 Capture</button>
-            <button class="close-camera-btn" onclick="closeCamera()">❌ Close</button>
-        </div>
-    </div>
-
-<script>
-let notes = [];
-let currentPhoto = null;
-let currentVideoStream = null;
-
-function saveNote() {
-    const input = document.getElementById('noteInput');
-    const text = input.value.trim();
-
-    if (!text && !currentPhoto) {
-        alert("Empty note not allowed");
-        return;
-    }
-
-    notes.unshift({
-        id: Date.now(),
-        text,
-        photo: currentPhoto,
-        date: new Date().toLocaleString()
-    });
-
-    input.value = "";
-    currentPhoto = null;
-
-    renderNotes();
-}
-
-function renderNotes() {
-    const container = document.getElementById('notesList');
-
-    container.innerHTML = notes.map(n => `
-        <div class="note-item">
-            <div>
-                <div>${n.text}</div>
-                ${n.photo ? `<img src="${n.photo}" style="max-width:80px;border-radius:6px;">` : ""}
-                <small>${n.date}</small>
-            </div>
-            <button class="delete-btn" onclick="deleteNote(${n.id})">✗</button>
-        </div>
-    `).join("");
-}
-
-function deleteNote(id) {
-    notes = notes.filter(n => n.id !== id);
-    renderNotes();
-}
-
-function loadWebsite() {
-    let url = document.getElementById('urlInput').value;
-    if (!url.startsWith('http')) url = 'https://' + url;
-    document.getElementById('webFrame').src = url;
-}
-
-async function openCamera() {
-    document.getElementById('cameraModal').classList.add('active');
-
-    currentVideoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    document.getElementById('video').srcObject = currentVideoStream;
-}
-
-function capturePhoto() {
-    const video = document.getElementById('video');
-    const canvas = document.createElement('canvas');
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    canvas.getContext('2d').drawImage(video, 0, 0);
-
-    currentPhoto = canvas.toDataURL('image/jpeg');
-
-    closeCamera();
-}
-
-function closeCamera() {
-    document.getElementById('cameraModal').classList.remove('active');
-
-    if (currentVideoStream) {
-        currentVideoStream.getTracks().forEach(t => t.stop());
-    }
-}
-</script>
-
+        // Start WebSocket connection on page load
+        connectWebSocket();
+        
+        // Set device ID display
+        document.getElementById('deviceId').innerHTML = '📱 Device: ' + deviceId;
+    </script>
 </body>
 </html>
