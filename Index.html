@@ -3,142 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>App Status</title>
+    <title>Neon Status</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: Arial, sans-serif;
-            background: #1a1a2e;
-            min-height: 100vh;
+            background: #0a0a0a;
             display: flex;
             justify-content: center;
             align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
         }
-        
-        .container {
-            text-align: center;
-        }
-        
+        .container { text-align: center; }
         .status-box {
-            width: 200px;
-            height: 200px;
-            border-radius: 20px;
-            margin: 20px auto;
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            margin: 30px auto;
+            transition: all 0.3s;
         }
-        
         .status-box.red {
-            background: #ef4444;
-            box-shadow: 0 0 20px rgba(239,68,68,0.5);
+            background: #ff0000;
+            box-shadow: 0 0 50px #ff0000, 0 0 100px #ff0000;
+            animation: pulseRed 1s infinite;
         }
-        
         .status-box.green {
-            background: #22c55e;
-            box-shadow: 0 0 30px rgba(34,197,94,0.6);
+            background: #00ff00;
+            box-shadow: 0 0 50px #00ff00, 0 0 100px #00ff00;
+            animation: pulseGreen 1s infinite;
         }
-        
-        .status-box.checking {
-            background: #64748b;
+        .status-box.checking { background: #333; box-shadow: 0 0 20px #666; }
+        @keyframes pulseRed {
+            0% { box-shadow: 0 0 50px #ff0000; }
+            50% { box-shadow: 0 0 100px #ff0000, 0 0 150px #ff0000; }
+            100% { box-shadow: 0 0 50px #ff0000; }
         }
-        
-        .info {
-            margin-top: 30px;
-            color: white;
-            font-size: 14px;
-            background: rgba(255,255,255,0.1);
-            padding: 15px;
-            border-radius: 10px;
+        @keyframes pulseGreen {
+            0% { box-shadow: 0 0 50px #00ff00; }
+            50% { box-shadow: 0 0 100px #00ff00, 0 0 150px #00ff00; }
+            100% { box-shadow: 0 0 50px #00ff00; }
         }
-        
+        .status-text { font-size: 24px; font-weight: bold; margin-top: 20px; }
+        .red-text { color: #ff0000; text-shadow: 0 0 10px #ff0000; }
+        .green-text { color: #00ff00; text-shadow: 0 0 10px #00ff00; }
+        .info { color: #666; margin-top: 30px; font-size: 12px; }
         button {
             margin-top: 20px;
-            padding: 10px 24px;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            border-radius: 8px;
+            padding: 10px 30px;
+            background: transparent;
+            color: #00ff00;
+            border: 2px solid #00ff00;
+            border-radius: 5px;
             cursor: pointer;
-            font-size: 14px;
+            font-family: monospace;
         }
-        
-        button:hover {
-            background: #2563eb;
-        }
-        
-        h1 {
-            color: white;
-            margin-bottom: 20px;
-            font-size: 24px;
-        }
-        
-        .status-label {
-            margin-top: 10px;
-            font-size: 18px;
-            font-weight: bold;
-        }
-        
-        .status-label.red-text {
-            color: #ef4444;
-        }
-        
-        .status-label.green-text {
-            color: #22c55e;
-        }
+        button:hover { background: #00ff00; color: black; }
+        h1 { color: #00ff00; margin-bottom: 20px; text-shadow: 0 0 10px #00ff00; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📱 App Status</h1>
-        
+        <h1>⚡ NEON STATUS</h1>
         <div class="status-box checking" id="statusBox"></div>
-        <div class="status-label" id="statusLabel">Checking...</div>
-        
+        <div class="status-text" id="statusText">CHECKING...</div>
         <div class="info">
-            <div>📅 Last Update: <span id="lastUpdate">--:--:--</span></div>
+            <div>🕐 <span id="lastUpdate">--:--:--</span></div>
         </div>
-        
-        <button onclick="refreshStatus()">🔄 Refresh</button>
+        <button onclick="refreshStatus()">⟳ REFRESH</button>
     </div>
-
     <script>
         async function checkStatus() {
             try {
-                const response = await fetch('/api/update-status');
-                const data = await response.json();
-                
+                const res = await fetch('/api/update-status');
+                const data = await res.json();
                 const box = document.getElementById('statusBox');
-                const label = document.getElementById('statusLabel');
-                
+                const text = document.getElementById('statusText');
                 if(data.status === 'active') {
                     box.className = 'status-box green';
-                    label.innerHTML = '🟢 ACTIVE';
-                    label.className = 'status-label green-text';
+                    text.innerHTML = '◉ ACTIVE';
+                    text.className = 'status-text green-text';
                 } else {
                     box.className = 'status-box red';
-                    label.innerHTML = '🔴 OFFLINE';
-                    label.className = 'status-label red-text';
+                    text.innerHTML = '◎ OFFLINE';
+                    text.className = 'status-text red-text';
                 }
-                
                 document.getElementById('lastUpdate').innerHTML = new Date().toLocaleTimeString();
-                
-            } catch(error) {
-                const box = document.getElementById('statusBox');
-                box.className = 'status-box red';
-                document.getElementById('statusLabel').innerHTML = '⚠️ ERROR';
-                document.getElementById('lastUpdate').innerHTML = new Date().toLocaleTimeString();
+            } catch(e) {
+                document.getElementById('statusBox').className = 'status-box red';
+                document.getElementById('statusText').innerHTML = '⚠ ERROR';
             }
         }
-        
-        async function refreshStatus() {
-            await checkStatus();
-        }
-        
+        async function refreshStatus() { await checkStatus(); }
         setInterval(checkStatus, 5000);
         checkStatus();
     </script>
